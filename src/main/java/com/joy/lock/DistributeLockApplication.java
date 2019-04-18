@@ -1,6 +1,10 @@
 package com.joy.lock;
 
 import com.joy.lock.redis.RedisPool;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
+import org.redisson.config.Config;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -9,29 +13,48 @@ import org.springframework.web.bind.annotation.RestController;
 import redis.clients.jedis.Jedis;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
 @RestController
+@Slf4j
 public class DistributeLockApplication {
 
     private ThreadLocal<String> threadLocal = new ThreadLocal<>();
 
-    @GetMapping("/")
+    @GetMapping("/jedis")
     public String test(){
         String result = "fail";
         String uuid = UUID.randomUUID().toString();
-        threadLocal.set(uuid);
-        if (RedisPool.tryGetDistributedLock(jedis(),"test", threadLocal.get(),600000)) result = "ok";
+        log.info(uuid);
+        if (RedisPool.tryGetDistributedLock(jedis(),"test", uuid,600000)) {
+            result = "ok";
+            RedisPool.releaseDistributedLock(jedis(), "test", uuid);
+        }
         return result;
     }
 
-    @GetMapping("/cancel")
-    public String cancel(){
+    @GetMapping("/redisson")
+    public String redis(){
         String result = "fail";
-        if(RedisPool.releaseDistributedLock(jedis(),"test",threadLocal.get())) result = "ok";
+        RLock lock = redisson().getLock("test");
+        lock.lock(60000L, TimeUnit.SECONDS);
+        log.info("获取到锁");
+        result = "ok";
+        lock.unlock();
         return result;
     }
 
+
+
+
+    @Bean
+    public Redisson redisson(){
+        Config config = new Config();
+        config.useSingleServer().setAddress("redis://127.0.0.1:6379");
+        Redisson redisson = (Redisson) Redisson.create(config);
+        return redisson;
+    }
 
     @Bean
     public Jedis jedis(){
