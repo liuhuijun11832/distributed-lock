@@ -1,6 +1,7 @@
 package com.joy.lock;
 
 import com.joy.lock.redis.RedisPool;
+import com.joy.lock.zookeeper.DistributedLock;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import redis.clients.jedis.Jedis;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -45,8 +47,20 @@ public class DistributeLockApplication {
         return result;
     }
 
+    @GetMapping("/zk")
+    public String zookeeper() throws IOException, InterruptedException {
+        String result = "fail";
+        if(distributedLock().releaseDistributedLock()){
+            result = "ok";
+        }
+        return result;
+    }
 
 
+    @Bean
+    public DistributedLock distributedLock() throws IOException, InterruptedException {
+        return new DistributedLock();
+    }
 
     @Bean
     public Redisson redisson(){
