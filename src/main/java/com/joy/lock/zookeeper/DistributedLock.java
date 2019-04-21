@@ -58,7 +58,7 @@ public class DistributedLock {
             List<String> lessThanLockIDList = childrenList.subList(0, childrenList.indexOf(lockId));
             if (!lessThanLockIDList.isEmpty()) {
                 String preLockID = lessThanLockIDList.get(lessThanLockIDList.size() - 1);
-                //监听上一节点变化
+                //监听上一节点变化,如果删除在监听器里会将countDownLatch减1，这样就能执行挂起的客户端
                 zooKeeper.exists(preLockID, new LockWatcher(countDownLatch));
                 //使用countDownLatch闭锁来挂起当前线程直到lockWatcher监听到上一节点的变化countDown了或者超时sessionTimeout以后
                 countDownLatch.await(sessionTimeout, TimeUnit.MILLISECONDS);
